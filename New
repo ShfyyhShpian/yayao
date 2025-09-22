@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chrono-Sprint: Verb Quest</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Orbitron', sans-serif;
+        }
+        
+        body {
+            background: #0a0a16;
+            color: #00f3ff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            border: 2px solid #00f3ff;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px #00f3ff, inset 0 0 20px rgba(0, 243, 255, 0.2);
+        }
+        
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(10, 10, 22, 0.9);
+            z-index: 10;
+        }
+        
+        #game-start {
+            background: rgba(10, 10, 22, 0.95);
+        }
+        
+        h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px #00f3ff;
+            color: #fff;
+        }
+        
+        .verb-display {
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid #00f3ff;
+            border-radius: 5px;
+            padding: 10px 20px;
+            margin: 10px 0;
+            font-size: 24px;
+            text-align: center;
+            box-shadow: 0 0 10px #00f3ff;
+        }
+        
+        .options-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        
+        .option {
+            background: rgba(0, 243, 255, 0.1);
+            border: 1px solid #00f3ff;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.2s;
+            pointer-events: auto;
+        }
+        
+        .option:hover {
+            background: rgba(0, 243, 255, 0.3);
+            transform: scale(1.05);
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #00f3ff, #0066ff);
+            border: none;
+            border-radius: 5px;
+            color: #0a0a16;
+            padding: 12px 24px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 0;
+            pointer-events: auto;
+            transition: all 0.3s;
+            box-shadow: 0 0 10px #00f3ff;
+        }
+        
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px #00f3ff;
+        }
+        
+        .stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 18px;
+        }
+        
+        .verb-buffer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+            font-size: 16px;
+        }
+        
+        .conversion-notice {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00f3ff;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            z-index: 20;
+            box-shadow: 0 0 30px #00f3ff;
+        }
+        
+        .grid-line {
+            position: absolute;
+            width: 100%;
+            height: 1px;
+            background: linear-gradient(to right, transparent, #00f3ff, transparent);
+            opacity: 0.3;
+        }
+        
+        @keyframes glow {
+            0% { text-shadow: 0 0 5px #00f3ff; }
+            50% { text-shadow: 0 0 20px #00f3ff, 0 0 30px #00f3ff; }
+            100% { text-shadow: 0 0 5px #00f3ff; }
+        }
+        
+        .glowing-text {
+            animation: glow 2s infinite;
+        }
+        
+        #cyberpunk-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.2;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        
+        <div id="cyberpunk-grid"></div>
+        
+        <div id="ui-layer">
+            <div id="game-start" class="screen">
+                <h1>CHRONO-SPRINT:<br>VERB QUEST</h1>
+                <p class="verb-display">CYBERPUNK EDITION</p>
+                <p>Collect verbs and convert them to past tense!</p>
+                <button id="start-button">START RUN</button>
+            </div>
+            
+            <div id="game-over" class="screen" style="display: none;">
+                <h1>SYSTEM FAILURE</h1>
+                <p class="verb-display">Verbs Collected: <span id="final-score">0</span></p>
+                <p>Correct Conversions: <span id="correct-conversions">0</span></p>
+                <button id="restart-button">REBOOT SYSTEM</button>
+            </div>
+            
+            <div class="stats">
+                <div>Score: <span id="score">0</span></div>
+                <div>Speed: <span id="speed">0</span></div>
+            </div>
+            
+            <div class="verb-buffer">
+                <div>Verb Buffer:</div>
+                <div id="verb-buffer-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let canvas, ctx;
+        let gameRunning = false;
+        let score = 0;
+        let speed = 5;
+        let playerX = 200;
+        let playerY = 450;
+        let playerWidth = 50;
+        let playerHeight = 70;
+        let lanes = [100, 200, 300];
+        let currentLane = 1;
+        let obstacles = [];
+        let verbs = [];
+        let conversionOrbs = [];
+        let verbBuffer = [];
+        let correctConversions = 0;
+        let lastTime = 0;
+        let backgroundY = 0;
+        let conversionActive = false;
+        let currentVerb = null;
+        let conversionOptions = [];
+        
+        // Verb database - present and past tense pairs
+        const verbDatabase = [
+            { present: "run", past: "ran", options: ["ran", "runned", "run"] },
+            { present: "eat", past: "ate", options: ["ate", "eated", "eat"] },
+            { present: "see", past: "saw", options: ["saw", "seen", "see"] },
+            { present: "bring", past: "brought", options: ["brought", "bringed", "brang"] },
+            { present: "buy", past: "bought", options: ["bought", "buyed", "bring"] },
+            { present: "catch", past: "caught", options: ["caught", "catched", "catch"] },
+            { present: "teach", past: "taught", options: ["taught", "teached", "teach"] },
+            { present: "think", past: "thought", options: ["thought", "thinked", "think"] },
+            { present: "jump", past: "jumped", options: ["jumped", "jump", "jamp"] },
+            { present: "walk", past: "walked", options: ["walked", "walk", "wolk"] }
+        ];
+
+        // Audio context for sound effects
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const audioContext = new AudioContext();
+        
+        // Initialize the game
+        function init() {
+            canvas = document.getElementById('game-canvas');
+            ctx = canvas.getContext('2d');
+            canvas.width = 400;
+            canvas.height = 600;
+            
+            // Create cyberpunk grid background
+            createGrid();
+            
+            // Event listeners
+            document.getElementById('start-button').addEventListener('click', startGame);
+            document.getElementById('restart-button').addEventListener('click', restartGame);
+            document.addEventListener('keydown', handleKeyPress);
+            
+            // Draw initial screen
+            draw();
+        }
+        
+        function createGrid() {
+            const grid = document.getElementById('cyberpunk-grid');
+            for (let i = 0; i < 20; i++) {
+                const line = document.createElement('div');
+                line.className = 'grid-line';
+                line.style.top = (i * 30) + 'px';
+                grid.appendChild(line);
+            }
+        }
+        
+        function startGame() {
+            gameRunning = true;
+            document.getElementById('game-start').style.display = 'none';
+            score = 0;
+            speed = 5;
+            correctConversions = 0;
+            verbBuffer = [];
+            obstacles = [];
+            verbs = [];
+            conversionOrbs = [];
+            updateVerbBufferDisplay();
+            
+            // Start the game loop
+            requestAnimationFrame(gameLoop);
+            
+            // Start generating objects
+            setInterval(generateObstacle, 1500);
+            setInterval(generateVerb, 1000);
+            setInterval(generateConversionOrb, 5000);
+        }
+        
+        function restartGame() {
+            document.getElementById('game-over').style.display = 'none';
+            startGame();
+        }
+        
+        function gameLoop(timestamp) {
+            if (!gameRunning) return;
+            
+            const deltaTime = timestamp - lastTime;
+            lastTime = timestamp;
+            
+            // Update game state
+            update(deltaTime);
+            
+            // Draw everything
+            draw();
+            
+            // Continue the loop
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function update(deltaTime) {
+            // Move background
+            backgroundY += speed;
+            if (backgroundY >= 30) backgroundY = 0;
+            
+            // Update obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                obstacles[i].y += speed;
+                
+                // Remove obstacles that are off screen
+                if (obstacles[i].y > canvas.height) {
+                    obstacles.splice(i, 1);
+                } else if (checkCollision(playerX, playerY, playerWidth, playerHeight, 
+                                         obstacles[i].x, obstacles[i].y, obstacles[i].width, obstacles[i].height)) {
+                    gameOver();
+                    return;
+                }
+            }
+            
+            // Update verbs
+            for (let i = verbs.length - 1; i >= 0; i--) {
+                verbs[i].y += speed;
+                
+                // Remove verbs that are off screen
+                if (verbs[i].y > canvas.height) {
+                    verbs.splice(i, 1);
+                } else if (checkCollision(playerX, playerY, playerWidth, playerHeight, 
+                                         verbs[i].x, verbs[i].y, verbs[i].width, verbs[i].height)) {
+                    playSound('collect');
+                    verbBuffer.push(verbs[i].verb);
+                    updateVerbBufferDisplay();
+                    verbs.splice(i, 1);
+                }
+            }
+            
+            // Update conversion orbs
+            for (let i = conversionOrbs.length - 1; i >= 0; i--) {
+                conversionOrbs[i].y += speed;
+                
+                // Remove orbs that are off screen
+                if (conversionOrbs[i].y > canvas.height) {
+                    conversionOrbs.splice(i, 1);
+                } else if (checkCollision(playerX, playerY, playerWidth, playerHeight, 
+                                         conversionOrbs[i].x, conversionOrbs[i].y, conversionOrbs[i].width, conversionOrbs[i].height)) {
+                    playSound('powerup');
+                    if (verbBuffer.length > 0) {
+                        startConversion();
+                    }
+                    conversionOrbs.splice(i, 1);
+                }
+            }
+            
+            // Gradually increase speed
+            if (score % 10 === 0) {
+                speed = 5 + Math.floor(score / 10) * 0.5;
+            }
+            
+            // Update score
+            score += 0.1;
+            document.getElementById('score').textContent = Math.floor(score);
+            document.getElementById('speed').textContent = speed.toFixed(1);
+        }
+        
+        function draw() {
+            // Clear the canvas
+            ctx.fillStyle = '#0a0a16';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw grid lines for cyberpunk effect
+            ctx.strokeStyle = '#00f3ff';
+            ctx.lineWidth = 1;
+            for (let y = backgroundY; y < canvas.height; y += 30) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Draw player (cyberpunk runner)
+            ctx.fillStyle = '#00f3ff';
+            ctx.beginPath();
+            ctx.moveTo(playerX, playerY);
+            ctx.lineTo(playerX - playerWidth/2, playerY + playerHeight);
+            ctx.lineTo(playerX + playerWidth/2, playerY + playerHeight);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Draw glow effect for player
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#00f3ff';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Draw obstacles
+            ctx.fillStyle = '#ff0055';
+            for (const obstacle of obstacles) {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                
+                // Draw glow for obstacles
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff0055';
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                ctx.shadowBlur = 0;
+            }
+            
+            // Draw verbs (floating words)
+            ctx.font = '16px Orbitron';
+            ctx.textAlign = 'center';
+            for (const verb of verbs) {
+                ctx.fillStyle = '#00ff99';
+                ctx.fillText(verb.verb.present, verb.x, verb.y);
+                
+                // Draw glow for verbs
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00ff99';
+                ctx.fillText(verb.verb.present, verb.x, verb.y);
+                ctx.shadowBlur = 0;
+            }
+            
+            // Draw conversion orbs
+            for (const orb of conversionOrbs) {
+                ctx.fillStyle = '#ffcc00';
+                ctx.beginPath();
+                ctx.arc(orb.x, orb.y, orb.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw glow for orbs
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#ffcc00';
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Draw icon inside orb
+                ctx.fillStyle = '#0a0a16';
+                ctx.font = '16px Arial';
+                ctx.fillText('C', orb.x, orb.y + 5);
+            }
+        }
+        
+        function generateObstacle() {
+            if (!gameRunning) return;
+            
+            const lane = lanes[Math.floor(Math.random() * lanes.length)];
+            obstacles.push({
+                x: lane - 25,
+                y: -50,
+                width: 50,
+                height: 50
+            });
+        }
+        
+        function generateVerb() {
+            if (!gameRunning || verbBuffer.length >= 5) return;
+            
+            const verb = verbDatabase[Math.floor(Math.random() * verbDatabase.length)];
+            const lane = lanes[Math.floor(Math.random() * lanes.length)];
+            
+            verbs.push({
+                x: lane,
+                y: -30,
+                width: 60,
+                height: 20,
+                verb: verb
+            });
+        }
+        
+        function generateConversionOrb() {
+            if (!gameRunning) return;
+            
+            const lane = lanes[Math.floor(Math.random() * lanes.length)];
+            conversionOrbs.push({
+                x: lane,
+                y: -30,
+                radius: 15
+            });
+        }
+        
+        function startConversion() {
+            if (verbBuffer.length === 0) return;
+            
+            conversionActive = true;
+            gameRunning = false;
+            
+            // Select a random verb from the buffer
+            const randomIndex = Math.floor(Math.random() * verbBuffer.length);
+            currentVerb = verbBuffer[randomIndex];
+            
+            // Create conversion UI
+            const conversionUI = document.createElement('div');
+            conversionUI.className = 'conversion-notice';
+            conversionUI.innerHTML = `
+                <h2>CONVERSION REQUIRED</h2>
+                <p class="verb-display">Convert to past tense:</p>
+                <p class="verb-display glowing-text">${currentVerb.present}</p>
+                <div class="options-container">
+                    ${currentVerb.options.map(opt => 
+                        `<div class="option" onclick="checkConversion('${opt}')">${opt}</div>`
+                    ).join('')}
+                </div>
+            `;
+            
+            document.getElementById('ui-layer').appendChild(conversionUI);
+        }
+        
+        function checkConversion(selectedOption) {
+            playSound(selectedOption === currentVerb.past ? 'correct' : 'incorrect');
+            
+            if (selectedOption === currentVerb.past) {
+                // Correct conversion
+                correctConversions++;
+                score += 10;
+                
+                // Remove the verb from buffer
+                const index = verbBuffer.findIndex(v => v.present === currentVerb.present);
+                if (index !== -1) {
+                    verbBuffer.splice(index, 1);
+                }
+                
+                updateVerbBufferDisplay();
+            }
+            
+            // Remove conversion UI
+            const conversionUI = document.querySelector('.conversion-notice');
+            if (conversionUI) {
+                conversionUI.remove();
+            }
+            
+            conversionActive = false;
+            gameRunning = true;
+            
+            // Continue the game loop
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        function updateVerbBufferDisplay() {
+            const bufferList = document.getElementById('verb-buffer-list');
+            bufferList.innerHTML = '';
+            
+            for (const verb of verbBuffer) {
+                const div = document.createElement('div');
+                div.textContent = verb.present;
+                bufferList.appendChild(div);
+            }
+        }
+        
+        function gameOver() {
+            gameRunning = false;
+            playSound('gameover');
+            
+            document.getElementById('final-score').textContent = Math.floor(score);
+            document.getElementById('correct-conversions').textContent = correctConversions;
+            document.getElementById('game-over').style.display = 'flex';
+        }
+        
+        function handleKeyPress(e) {
+            if (!gameRunning) return;
+            
+            if (e.key === 'ArrowLeft' && currentLane > 0) {
+                currentLane--;
+                playerX = lanes[currentLane];
+                playSound('move');
+            } else if (e.key === 'ArrowRight' && currentLane < lanes.length - 1) {
+                currentLane++;
+                playerX = lanes[currentLane];
+                playSound('move');
+            }
+        }
+        
+        function checkCollision(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 && 
+                   x1 + w1 > x2 && 
+                   y1 < y2 + h2 && 
+                   y1 + h1 > y2;
+        }
+        
+        function playSound(type) {
+            try {
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                switch(type) {
+                    case 'move':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = 300;
+                        gainNode.gain.value = 0.1;
+                        break;
+                    case 'collect':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = 800;
+                        gainNode.gain.value = 0.1;
+                        break;
+                    case 'powerup':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = 1200;
+                        gainNode.gain.value = 0.1;
+                        break;
+                    case 'correct':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.value = 523.25;
+                        gainNode.gain.value = 0.1;
+                        break;
+                    case 'incorrect':
+                        oscillator.type = 'sawtooth';
+                        oscillator.frequency.value = 200;
+                        gainNode.gain.value = 0.1;
+                        break;
+                    case 'gameover':
+                        oscillator.type = 'sawtooth';
+                        oscillator.frequency.value = 150;
+                        gainNode.gain.value = 0.1;
+                        break;
+                }
+                
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + 0.1);
+            } catch (e) {
+                console.log("Sound error:", e);
+            }
+        }
+        
+        // Make checkConversion function available globally for the onclick handlers
+        window.checkConversion = checkConversion;
+        
+        // Initialize the game when the page loads
+        window.onload = init;
+    </script>
+</body>
+</html>
