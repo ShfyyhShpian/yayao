@@ -199,6 +199,7 @@
                 <h1>CHRONO-SPRINT:<br>VERB QUEST</h1>
                 <p class="verb-display">CYBERPUNK EDITION</p>
                 <p>Collect verbs and convert them to past tense!</p>
+                <p>Use LEFT/RIGHT arrows to move</p>
                 <button id="start-button">START RUN</button>
             </div>
             
@@ -242,7 +243,6 @@
         let backgroundY = 0;
         let conversionActive = false;
         let currentVerb = null;
-        let conversionOptions = [];
         
         // Verb database - present and past tense pairs
         const verbDatabase = [
@@ -258,10 +258,6 @@
             { present: "walk", past: "walked", options: ["walked", "walk", "wolk"] }
         ];
 
-        // Audio context for sound effects
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const audioContext = new AudioContext();
-        
         // Initialize the game
         function init() {
             canvas = document.getElementById('game-canvas');
@@ -610,51 +606,8 @@
         }
         
         function playSound(type) {
-            try {
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                switch(type) {
-                    case 'move':
-                        oscillator.type = 'sine';
-                        oscillator.frequency.value = 300;
-                        gainNode.gain.value = 0.1;
-                        break;
-                    case 'collect':
-                        oscillator.type = 'sine';
-                        oscillator.frequency.value = 800;
-                        gainNode.gain.value = 0.1;
-                        break;
-                    case 'powerup':
-                        oscillator.type = 'sine';
-                        oscillator.frequency.value = 1200;
-                        gainNode.gain.value = 0.1;
-                        break;
-                    case 'correct':
-                        oscillator.type = 'sine';
-                        oscillator.frequency.value = 523.25;
-                        gainNode.gain.value = 0.1;
-                        break;
-                    case 'incorrect':
-                        oscillator.type = 'sawtooth';
-                        oscillator.frequency.value = 200;
-                        gainNode.gain.value = 0.1;
-                        break;
-                    case 'gameover':
-                        oscillator.type = 'sawtooth';
-                        oscillator.frequency.value = 150;
-                        gainNode.gain.value = 0.1;
-                        break;
-                }
-                
-                oscillator.start();
-                oscillator.stop(audioContext.currentTime + 0.1);
-            } catch (e) {
-                console.log("Sound error:", e);
-            }
+            // In a real implementation, this would play actual sound effects
+            console.log("Playing sound:", type);
         }
         
         // Make checkConversion function available globally for the onclick handlers
